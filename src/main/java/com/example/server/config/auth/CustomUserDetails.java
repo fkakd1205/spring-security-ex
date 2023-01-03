@@ -15,10 +15,10 @@ import lombok.ToString;
 
 @Getter
 @ToString
-public class CustomUserDetail implements UserDetails {
+public class CustomUserDetails implements UserDetails {
     private User user;
 
-    public CustomUserDetail(User user) {
+    public CustomUserDetails(User user) {
         this.user = user;
     }
 
