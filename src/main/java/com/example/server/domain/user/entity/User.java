@@ -12,10 +12,12 @@ import javax.persistence.Table;
 import org.hibernate.annotations.Type;
 
 import lombok.Getter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "user")
 @Getter
+@ToString
 public class User {
 
     @Id

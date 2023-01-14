@@ -1,4 +1,4 @@
-package com.example.server.config.auth;
+package com.example.server.security.auth;
 
 import java.util.ArrayList;
 import java.util.Arrays;
