@@ -12,6 +12,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 
+import com.example.server.domain.refresh_token.repository.RefreshTokenRepository;
 import com.example.server.security.auth.CustomUserDetailsService;
 import com.example.server.security.auth.JwtAuthenticationFilter;
 import com.example.server.security.auth.JwtAuthenticationProvider;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -76,7 +78,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationManager authenticationManager) {
-        JwtAuthenticationFilter authenticationFilter = new JwtAuthenticationFilter();
+        JwtAuthenticationFilter authenticationFilter = new JwtAuthenticationFilter(refreshTokenRepository);
         authenticationFilter.setAuthenticationManager(authenticationManager);
 
         SecurityContextRepository contextRepository = new HttpSessionSecurityContextRepository();

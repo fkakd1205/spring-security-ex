@@ -1,25 +1,39 @@
 package com.example.server.security.auth;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.example.server.domain.message.Message;
+import com.example.server.domain.refresh_token.entity.RefreshToken;
+import com.example.server.domain.refresh_token.repository.RefreshTokenRepository;
 import com.example.server.domain.user.entity.User;
+import com.example.server.security.service.JwtAuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
+    private RefreshTokenRepository refreshTokenRepository;
 
-    public JwtAuthenticationFilter() {
+    public JwtAuthenticationFilter(RefreshTokenRepository refreshTokenRepository) {
         // form 로그인이 아닌 커스텀 로그인에서 api 요청시 인증 필터를 진행할 url
+        this.refreshTokenRepository = refreshTokenRepository;
         setFilterProcessesUrl("/api/v1/login");
     }
 
@@ -45,13 +59,74 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
             Authentication authResult) throws IOException, ServletException {
         System.out.println("-----successfulAuthnentication-----");
-        // super.successfulAuthentication(request, response, chain, authResult);
+    
+        // 1. 로그인 성공된 user 조회
+        User user = ((CustomUserDetails) authResult.getPrincipal()).getUser();
+
+        // 2. Access Token 생성, Refresh Token 생성
+        String accessToken = JwtAuthService.createAccessToken(user);
+        String refreshToken = JwtAuthService.createRefreshToken(user);
+
+        // 3. Refresh Token DB 저장
+        // 이미 존재하는 refresh token이 있다면 제거 후 생성
+        try{
+            Optional<RefreshToken> refreshTokenOpt = refreshTokenRepository.findByUserId(user.getId());
+
+            if(refreshTokenOpt.isPresent()) {
+                refreshTokenRepository.delete(refreshTokenOpt.get());
+            }
+
+            RefreshToken newRefreshToken = RefreshToken.builder()
+                .id(UUID.randomUUID())
+                .refreshToken(refreshToken)
+                .createdAt(LocalDateTime.now())
+                .userId(user.getId())
+                .build();
+
+            refreshTokenRepository.save(newRefreshToken);
+        }catch(NullPointerException e) {
+            throw new AuthenticationServiceException("존재하지 않는 데이터입니다.");
+        }
+
+        // 4. Cookie에 Access Token (ac_token) 주입
+        Cookie cookie = new Cookie("ac_token", accessToken);
+        cookie.setHttpOnly(true);
+        cookie.setDomain("localhost");
+        cookie.setPath("/");
+        cookie.setMaxAge(3 * 24 * 60 * 60);     // 3일
+        // cookie.setSecure(true);
+        response.addCookie(cookie);
+
+        // 로그인 성공 response 세팅
+        Message message = new Message();
+        message.setStatus(HttpStatus.OK);
+        message.setMessage("success");
+        message.setMemo("login_success");
+
+        response.setStatus(HttpStatus.OK.value());
+        response.setContentType(MediaType.APPLICATION_JSON.toString());    
+        new ObjectMapper().writeValue(response.getOutputStream(), message);
     }
 
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException failed) throws IOException, ServletException {
         System.out.println("-----unsuccessfulAuthnentication-----");
-        // super.unsuccessfulAuthentication(request, response, failed);
+
+        // 1. Http Response Message 세팅 후 반환
+        Object failedType = failed.getClass();
+        
+        // 2. 예외에 따른 response 세팅
+        // TODO :: 추가 예외 처리
+        if(failedType.equals(BadCredentialsException.class) || failedType.equals(UsernameNotFoundException.class)) {
+            Message message = new Message();
+            message.setStatus(HttpStatus.UNAUTHORIZED);     // TODO :: status 확인
+            message.setMessage("auth_fail");
+            message.setMemo(failed.getLocalizedMessage());
+
+            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.setContentType(MediaType.APPLICATION_JSON.toString());    
+            new ObjectMapper().writeValue(response.getOutputStream(), message);
+        }
     }
 }
