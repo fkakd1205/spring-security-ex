@@ -1,4 +1,4 @@
-package com.example.server.domain.user.entity;
+package com.example.server.domain.refresh_token.entity;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -11,32 +11,32 @@ import javax.persistence.Table;
 
 import org.hibernate.annotations.Type;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Entity
-@Table(name = "user")
+@Table(name = "refresh_token")
 @Getter
+@Builder
 @ToString
-public class User {
-
+@AllArgsConstructor
+@NoArgsConstructor
+public class RefreshToken {
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long cid;
+    public Long cid;
 
     @Type(type = "uuid-char")
     private UUID id;
 
-    private String username;
-
-    private String password;
-
-    @Type(type = "uuid-char")
-    private UUID salt;
-
-    private String roles;
+    private String refreshToken;
 
     private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
+    
+    @Type(type = "uuid-char")
+    private UUID userId;
 }

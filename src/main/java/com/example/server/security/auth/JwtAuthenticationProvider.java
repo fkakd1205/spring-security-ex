@@ -1,5 +1,7 @@
 package com.example.server.security.auth;
 
+import java.util.UUID;
+
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,7 +26,12 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
         String password = token.getCredentials().toString();
 
         CustomUserDetails savedUser = (CustomUserDetails) customUserDetailsService.loadUserByUsername(username);
-        if(!passwordEncoder.matches(password, savedUser.getPassword())) {
+        UUID salt = savedUser.getUser().getSalt();
+
+        // salt된 password를 구한다
+        String saltedPassword = password + salt;
+
+        if(!passwordEncoder.matches(saltedPassword, savedUser.getPassword())) {
             throw new BadCredentialsException("로그인 정보가 올바르지 않습니다.");
         }
         return new UsernamePasswordAuthenticationToken(savedUser, password, savedUser.getAuthorities());
