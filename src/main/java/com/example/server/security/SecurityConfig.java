@@ -16,6 +16,7 @@ import com.example.server.domain.refresh_token.repository.RefreshTokenRepository
 import com.example.server.security.auth.CustomUserDetailsService;
 import com.example.server.security.auth.JwtAuthenticationFilter;
 import com.example.server.security.auth.JwtAuthenticationProvider;
+import com.example.server.security.auth.JwtAuthorizationFilter;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,6 +31,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         AuthenticationManager authenticationManager = authenticationManager(http.getSharedObject(AuthenticationConfiguration.class));
         JwtAuthenticationFilter jwtAuthenticationFilter = jwtAuthenticationFilter(authenticationManager);
+        JwtAuthorizationFilter jwtAuthorizationFilter = jwtAuthorizationFilter();
 
         http
             .cors().disable()
@@ -42,6 +44,7 @@ public class SecurityConfig {
         http
             .formLogin()
             .usernameParameter("uesrname")      // form login에서 왜 uesrname으로 넘어올까..
+            .passwordParameter("password")
             .permitAll()
             .loginProcessingUrl("/api/v1/login")
             .defaultSuccessUrl("/");
@@ -57,7 +60,7 @@ public class SecurityConfig {
             );
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
+        http.addFilterAfter(jwtAuthorizationFilter, JwtAuthenticationFilter.class);
         return http.build();
     }
     
@@ -85,5 +88,11 @@ public class SecurityConfig {
         authenticationFilter.setSecurityContextRepository(contextRepository);
 
         return authenticationFilter;
+    }
+
+    @Bean
+    public JwtAuthorizationFilter jwtAuthorizationFilter() {
+        JwtAuthorizationFilter authorizationFilter = new JwtAuthorizationFilter(refreshTokenRepository);
+        return authorizationFilter;
     }
 }

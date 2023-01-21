@@ -7,12 +7,13 @@ import java.util.UUID;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -64,7 +65,8 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         User user = ((CustomUserDetails) authResult.getPrincipal()).getUser();
 
         // 2. Access Token 생성, Refresh Token 생성
-        String accessToken = JwtAuthService.createAccessToken(user);
+        UUID refreshTokenId = UUID.randomUUID();
+        String accessToken = JwtAuthService.createAccessToken(user, refreshTokenId);
         String refreshToken = JwtAuthService.createRefreshToken(user);
 
         // 3. Refresh Token DB 저장
@@ -77,7 +79,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
             }
 
             RefreshToken newRefreshToken = RefreshToken.builder()
-                .id(UUID.randomUUID())
+                .id(refreshTokenId)
                 .refreshToken(refreshToken)
                 .createdAt(LocalDateTime.now())
                 .userId(user.getId())
@@ -89,13 +91,24 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         }
 
         // 4. Cookie에 Access Token (ac_token) 주입
-        Cookie cookie = new Cookie("ac_token", accessToken);
-        cookie.setHttpOnly(true);
-        cookie.setDomain("localhost");
-        cookie.setPath("/");
-        cookie.setMaxAge(3 * 24 * 60 * 60);     // 3일
-        // cookie.setSecure(true);
-        response.addCookie(cookie);
+        // Cookie cookie = new Cookie("access_token", accessToken);
+        // cookie.setHttpOnly(true);
+        // cookie.setDomain("localhost");
+        // cookie.setPath("/");
+        // cookie.setMaxAge(3 * 24 * 60 * 60);     // 3일
+        // // cookie.setSecure(true);
+        // response.addCookie(cookie);
+
+        ResponseCookie cookies = ResponseCookie.from("access_token", accessToken)
+            .httpOnly(true)
+            .domain("localhost")
+            // .secure(true)
+            .sameSite("Strict")
+            .path("/")
+            .maxAge(3 * 24 * 60 * 60)     // 3일
+            .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookies.toString());
 
         // 로그인 성공 response 세팅
         Message message = new Message();
