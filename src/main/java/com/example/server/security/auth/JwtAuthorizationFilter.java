@@ -67,16 +67,15 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             return;
         }
 
-        Optional<User> userOpt = userRepository.findByUsername(claims.get("username").toString());
+        // 토큰에 저장된 유저정보가 존재하지 않는 경우 예외처리
+        User savedUser = userRepository.findByUsername(claims.get("username").toString())
+            .orElseThrow(() -> new UserPrincipalNotFoundException("not found user."));
 
         // 액세스토큰이 만료된 경우
         if(isAccessTokenExpired) {
             UUID refreshTokenId = UUID.fromString(claims.get("refreshTokenId").toString());
             Optional<RefreshToken> refreshTokenOpt = refreshTokenRepository.findById(refreshTokenId);
 
-            if(!userOpt.isPresent()) {
-                throw new UserPrincipalNotFoundException("not found user.");
-            }
             // 액세스토큰과 매칭된 리프레시토큰을 DB에서 조회한다
             if(refreshTokenOpt.isPresent()) {
                 Claims refreshTokenClaims = null;
@@ -98,7 +97,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                 }
 
                 // 리프레시 토큰이 존재한다면 액세스토큰 발급
-                String newAccessToken = JwtAuthService.createAccessToken(userOpt.get(), refreshTokenId);
+                String newAccessToken = JwtAuthService.createAccessToken(savedUser, refreshTokenId);
 
                 if(refreshTokenClaims != null) {
                     ResponseCookie cookies = ResponseCookie.from("access_token", newAccessToken)
@@ -121,7 +120,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             }
         }
 
-        this.saveAuthenticationToSecurityContextHolder(userOpt.get());
+        this.saveAuthenticationToSecurityContextHolder(savedUser);
         filterChain.doFilter(request, response);
     }
 

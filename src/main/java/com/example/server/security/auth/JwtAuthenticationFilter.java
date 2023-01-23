@@ -27,6 +27,8 @@ import com.example.server.domain.refresh_token.entity.RefreshToken;
 import com.example.server.domain.refresh_token.repository.RefreshTokenRepository;
 import com.example.server.domain.user.entity.User;
 import com.example.server.security.service.JwtAuthService;
+import com.fasterxml.jackson.core.exc.StreamWriteException;
+import com.fasterxml.jackson.databind.DatabindException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
@@ -109,16 +111,14 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
             .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookies.toString());
-
-        // 로그인 성공 response 세팅
+        
+        // 로그인 성공 메세지
         Message message = new Message();
         message.setStatus(HttpStatus.OK);
         message.setMessage("success");
         message.setMemo("login_success");
-
-        response.setStatus(HttpStatus.OK.value());
-        response.setContentType(MediaType.APPLICATION_JSON.toString());    
-        new ObjectMapper().writeValue(response.getOutputStream(), message);
+        
+        this.createResponseMessage(response, message);
     }
 
     @Override
@@ -137,9 +137,13 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
             message.setMessage("auth_fail");
             message.setMemo(failed.getLocalizedMessage());
 
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-            response.setContentType(MediaType.APPLICATION_JSON.toString());    
-            new ObjectMapper().writeValue(response.getOutputStream(), message);
+            this.createResponseMessage(response, message);
         }
+    }
+
+    private void createResponseMessage(HttpServletResponse response, Message message) throws StreamWriteException, DatabindException, IOException {
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setContentType(MediaType.APPLICATION_JSON.toString());    
+        new ObjectMapper().writeValue(response.getOutputStream(), message);
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.server.domain.user.entity.User;
 import com.example.server.security.properties.AuthTokenProperties;
+import com.example.server.security.utils.JwtAuthUtils;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -18,16 +19,11 @@ import io.jsonwebtoken.security.Keys;
 
 @Service
 public class JwtAuthService {
-    // private static long ACCESS_TOKEN_VALIDATION_SECOND = 1000 * 60 * 15;  // 15분
-    private static int ACCESS_TOKEN_VALIDATION_SECOND = 1000 * 30;  // 30초
-    // private static long REFRESH_TOKEN_VALIDATION_SECOND = 1000 * 60 * 60 * 24 * 5;    // 5일
-    private static int REFRESH_TOKEN_VALIDATION_SECOND = 1000 * 60 * 5;    // 5분
-
     public static String createAccessToken(User user, UUID refreshTokenId) {
         return Jwts.builder()
             .setSubject("access_token")
             .setClaims(createAccessTokenClaims(user, refreshTokenId))
-            .setExpiration(createTokenExpiration(ACCESS_TOKEN_VALIDATION_SECOND))
+            .setExpiration(createTokenExpiration(JwtAuthUtils.ACCESS_TOKEN_VALIDATION_SECOND))
             .signWith(createSigningKey(AuthTokenProperties.getAccessSecret()), SignatureAlgorithm.HS256)
             .compact();
     }
@@ -36,8 +32,8 @@ public class JwtAuthService {
         return Jwts.builder()
             .setSubject("refresh_token")
             .setClaims(createRefreshTokenClaims(user))
+            .setExpiration(createTokenExpiration(JwtAuthUtils.REFRESH_TOKEN_VALIDATION_SECOND))
             .signWith(createSigningKey(AuthTokenProperties.getRefreshSecret()), SignatureAlgorithm.HS256)
-            .setExpiration(createTokenExpiration(REFRESH_TOKEN_VALIDATION_SECOND))
             .compact();
     }
 
