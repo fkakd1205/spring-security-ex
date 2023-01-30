@@ -37,7 +37,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     public JwtAuthenticationFilter(RefreshTokenRepository refreshTokenRepository) {
         // form 로그인이 아닌 커스텀 로그인에서 api 요청시 인증 필터를 진행할 url
         this.refreshTokenRepository = refreshTokenRepository;
-        setFilterProcessesUrl("/api/v1/login");
+        setFilterProcessesUrl("/api/login");
     }
 
     @Override
@@ -54,7 +54,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
             // AuthenticationManager에 인증 위임
             return getAuthenticationManager().authenticate(userToken);
         } catch (IOException e) {
-            throw new AuthenticationServiceException("올바른 아이디와 비밀번호를 입력해주세요.");
+            throw new AuthenticationServiceException("아이디와 비밀번호를 올바르게 입력해주세요.");
         }
     }
 
@@ -89,18 +89,10 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 
             refreshTokenRepository.save(newRefreshToken);
         }catch(NullPointerException e) {
-            throw new AuthenticationServiceException("존재하지 않는 데이터입니다.");
+            throw new AuthenticationServiceException("유효하지 않은 사용자입니다.");
         }
 
-        // 4. Cookie에 Access Token (ac_token) 주입
-        // Cookie cookie = new Cookie("access_token", accessToken);
-        // cookie.setHttpOnly(true);
-        // cookie.setDomain("localhost");
-        // cookie.setPath("/");
-        // cookie.setMaxAge(3 * 24 * 60 * 60);     // 3일
-        // // cookie.setSecure(true);
-        // response.addCookie(cookie);
-
+        // 4. Cookie에 Access Token (access_token) 주입
         ResponseCookie cookies = ResponseCookie.from("access_token", accessToken)
             .httpOnly(true)
             .domain("localhost")
@@ -130,17 +122,24 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         Object failedType = failed.getClass();
         
         // 2. 예외에 따른 response 세팅
-        // TODO :: 추가 예외 처리
         if(failedType.equals(BadCredentialsException.class) || failedType.equals(UsernameNotFoundException.class)) {
             Message message = new Message();
-            message.setStatus(HttpStatus.UNAUTHORIZED);     // TODO :: status 확인
+            message.setStatus(HttpStatus.UNAUTHORIZED);
             message.setMessage("auth_fail");
+            message.setMemo(failed.getLocalizedMessage());
+
+            this.createResponseMessage(response, message);
+        } else {
+            Message message = new Message();
+            message.setStatus(HttpStatus.BAD_REQUEST);
+            message.setMessage("undefined_error");
             message.setMemo(failed.getLocalizedMessage());
 
             this.createResponseMessage(response, message);
         }
     }
 
+    // response message 설정
     private void createResponseMessage(HttpServletResponse response, Message message) throws StreamWriteException, DatabindException, IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON.toString());    

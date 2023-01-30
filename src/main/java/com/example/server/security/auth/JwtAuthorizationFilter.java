@@ -14,10 +14,11 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 import com.example.server.domain.refresh_token.entity.RefreshToken;
 import com.example.server.domain.refresh_token.repository.RefreshTokenRepository;
@@ -28,13 +29,16 @@ import com.example.server.security.service.JwtAuthService;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
 
-public class JwtAuthorizationFilter extends OncePerRequestFilter {
+public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
     private UserRepository userRepository;
     private RefreshTokenRepository refreshTokenRepository;
 
-    public JwtAuthorizationFilter(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository) {
+    public JwtAuthorizationFilter(AuthenticationManager authenticationManager, UserRepository userRepository, RefreshTokenRepository refreshTokenRepository) {
+        super(authenticationManager);
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
     }
@@ -62,7 +66,10 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             System.out.println("-----access token expired-----");
             claims = e.getClaims();
             isAccessTokenExpired = true;
-        } catch (Exception e) {     // TODO :: 구체 예외 처리
+        } catch (MalformedJwtException e) {
+            filterChain.doFilter(request, response);
+            return;
+        } catch (Exception e) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -91,6 +98,9 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                     refreshTokenRepository.delete(refreshTokenOpt.get());
                     filterChain.doFilter(request, response);
                     return;
+                } catch (MalformedJwtException e) {
+                    filterChain.doFilter(request, response);
+                    return;
                 } catch (Exception e) {     // TODO :: 구체 예외 처리
                     filterChain.doFilter(request, response);
                     return;
@@ -112,8 +122,8 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                     response.addHeader(HttpHeaders.SET_COOKIE, cookies.toString());
                 }
             }else {
-                System.out.println("-----not found refresh token-----");
-                
+                System.out.println("-----not found access & refresh token-----");
+
                 // TODO :: 인가 거절
                 filterChain.doFilter(request, response);
                 return;

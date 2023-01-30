@@ -34,7 +34,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         AuthenticationManager authenticationManager = authenticationManager(http.getSharedObject(AuthenticationConfiguration.class));
         JwtAuthenticationFilter jwtAuthenticationFilter = jwtAuthenticationFilter(authenticationManager);
-        JwtAuthorizationFilter jwtAuthorizationFilter = jwtAuthorizationFilter();
+        JwtAuthorizationFilter jwtAuthorizationFilter = jwtAuthorizationFilter(authenticationManager);
 
         http
             .cors().disable()
@@ -53,19 +53,16 @@ public class SecurityConfig {
             .headers().frameOptions().sameOrigin();
 
         http
-            .authorizeRequests((request) -> 
-                request
-                    .antMatchers("/api/v1/test/**").hasAuthority("ROLE_USER")
-                    .antMatchers(
-                        "/api/v1/home",
-                        "/api/v1/login",
-                        "/api/v1/signup"
-                    ).permitAll()
-                    .anyRequest().authenticated()
-            );
+                .authorizeRequests()
+                .antMatchers("/api/admin/**")
+                .access("hasRole('ROLE_ADMIN')")
+                .antMatchers("/api/test/**")
+                .access("hasRole('ROLE_USER')")
+                .anyRequest().permitAll();
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterAfter(jwtAuthorizationFilter, JwtAuthenticationFilter.class);
+        
         return http.build();
     }
     
@@ -96,8 +93,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtAuthorizationFilter jwtAuthorizationFilter() {
-        JwtAuthorizationFilter authorizationFilter = new JwtAuthorizationFilter(userRepository, refreshTokenRepository);
+    public JwtAuthorizationFilter jwtAuthorizationFilter(AuthenticationManager authenticationManager) {
+        JwtAuthorizationFilter authorizationFilter = new JwtAuthorizationFilter(authenticationManager, userRepository, refreshTokenRepository);
         return authorizationFilter;
     }
 }
