@@ -36,6 +36,8 @@ public class User {
 
     private String roles;
 
+    private String profileImagePath;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

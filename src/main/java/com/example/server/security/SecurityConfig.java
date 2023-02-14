@@ -18,7 +18,8 @@ import com.example.server.domain.user.repository.UserRepository;
 import com.example.server.security.auth.CustomUserDetailsService;
 import com.example.server.security.auth.JwtAuthenticationFilter;
 import com.example.server.security.auth.JwtAuthenticationProvider;
-import com.example.server.security.auth.JwtAuthorizationFilter;
+// import com.example.server.security.auth.JwtAuthorizationFilter;
+import com.example.server.security.oauth.CustomOAuth2UserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,12 +30,13 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
+    private final CustomOAuth2UserService customOAuth2UserService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         AuthenticationManager authenticationManager = authenticationManager(http.getSharedObject(AuthenticationConfiguration.class));
         JwtAuthenticationFilter jwtAuthenticationFilter = jwtAuthenticationFilter(authenticationManager);
-        JwtAuthorizationFilter jwtAuthorizationFilter = jwtAuthorizationFilter(authenticationManager);
+        // JwtAuthorizationFilter jwtAuthorizationFilter = jwtAuthorizationFilter(authenticationManager);
 
         http
             .cors().disable()
@@ -54,14 +56,21 @@ public class SecurityConfig {
 
         http
                 .authorizeRequests()
-                .antMatchers("/api/admin/**")
-                .access("hasRole('ROLE_ADMIN')")
-                .antMatchers("/api/test/**")
-                .access("hasRole('ROLE_USER')")
-                .anyRequest().permitAll();
+                // .antMatchers("/api/admin/**")
+                // .access("hasRole('ROLE_ADMIN')")
+                // .antMatchers("/api/test/**")
+                // .access("hasRole('ROLE_USER')")
+                // .antMatchers("/api/social-login", "/api/login")
+                // .permitAll()
+                // .anyRequest().authenticated();
+                .anyRequest().permitAll()
+                .and()
+                    .oauth2Login()
+                    .userInfoEndpoint()
+                    .userService(customOAuth2UserService);
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        http.addFilterAfter(jwtAuthorizationFilter, JwtAuthenticationFilter.class);
+        // http.addFilterAfter(jwtAuthorizationFilter, JwtAuthenticationFilter.class);
         
         return http.build();
     }
@@ -92,9 +101,9 @@ public class SecurityConfig {
         return authenticationFilter;
     }
 
-    @Bean
-    public JwtAuthorizationFilter jwtAuthorizationFilter(AuthenticationManager authenticationManager) {
-        JwtAuthorizationFilter authorizationFilter = new JwtAuthorizationFilter(authenticationManager, userRepository, refreshTokenRepository);
-        return authorizationFilter;
-    }
+    // @Bean
+    // public JwtAuthorizationFilter jwtAuthorizationFilter(AuthenticationManager authenticationManager) {
+    //     JwtAuthorizationFilter authorizationFilter = new JwtAuthorizationFilter(authenticationManager, userRepository, refreshTokenRepository);
+    //     return authorizationFilter;
+    // }
 }
