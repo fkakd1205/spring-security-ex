@@ -54,6 +54,11 @@ public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
             .filter(r -> r.getName().equals("access_token"))
             .findAny()
             .orElse(null);
+
+        if(cookie == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         
         String accessToken = cookie.getValue();
         Claims claims = null;
