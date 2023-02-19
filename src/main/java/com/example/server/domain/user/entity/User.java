@@ -11,13 +11,19 @@ import javax.persistence.Table;
 
 import org.hibernate.annotations.Type;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Entity
 @Table(name = "user")
 @Getter
 @ToString
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class User {
 
     @Id
@@ -35,6 +41,12 @@ public class User {
     private UUID salt;
 
     private String roles;
+
+    private String provider;
+
+    private String providerUserId;
+    
+    private String profileName;
 
     private String profileImagePath;
 
