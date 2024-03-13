@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import com.example.server.domain.user.dto.UserDto;
 import com.example.server.domain.user.entity.User;
 import com.example.server.domain.user.repository.UserRepository;
 
@@ -22,7 +23,8 @@ public class CustomUserDetailsService implements UserDetailsService {
         Optional<User> userOpt = userRepository.findByUsername(username);
 
         if(userOpt.isPresent()) {
-            return new CustomUserDetails(userOpt.get());
+            UserDto userDto = UserDto.toDto(userOpt.get());
+            return new CustomUserDetails(userDto);
         }else {
             throw new UsernameNotFoundException("로그인 정보가 올바르지 않습니다.");
         }

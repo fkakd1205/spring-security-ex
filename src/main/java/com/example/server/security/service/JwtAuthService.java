@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.example.server.domain.user.dto.UserDto;
 import com.example.server.domain.user.entity.User;
 import com.example.server.security.properties.AuthTokenProperties;
 import com.example.server.security.utils.JwtAuthUtils;
@@ -19,7 +20,7 @@ import io.jsonwebtoken.security.Keys;
 
 @Service
 public class JwtAuthService {
-    public static String createAccessToken(User user, UUID refreshTokenId) {
+    public static String createAccessToken(UserDto user, UUID refreshTokenId) {
         return Jwts.builder()
             .setSubject("access_token")
             .setClaims(createAccessTokenClaims(user, refreshTokenId))
@@ -28,7 +29,7 @@ public class JwtAuthService {
             .compact();
     }
 
-    public static String createRefreshToken(User user) {
+    public static String createRefreshToken(UserDto user) {
         return Jwts.builder()
             .setSubject("refresh_token")
             .setClaims(createRefreshTokenClaims(user))
@@ -48,14 +49,14 @@ public class JwtAuthService {
     }
 
     // 인가 필터 - access token 만료 시 refresh token의 유효성을 쉽게 조회하기 위해 refresh token id도 함께 넣어준다
-    private static Map<String, Object> createAccessTokenClaims(User user, UUID refreshTokenId) {
+    private static Map<String, Object> createAccessTokenClaims(UserDto user, UUID refreshTokenId) {
         Map<String, Object> map = new HashMap<>();
         map.put("username", user.getUsername());
         map.put("refreshTokenId", refreshTokenId);
         return map;
     }
 
-    private static Map<String, Object> createRefreshTokenClaims(User user) {
+    private static Map<String, Object> createRefreshTokenClaims(UserDto user) {
         Map<String, Object> map = new HashMap<>();
         map.put("username", user.getUsername());
         return map;

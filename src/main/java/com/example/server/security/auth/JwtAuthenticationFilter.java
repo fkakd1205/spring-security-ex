@@ -25,6 +25,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import com.example.server.domain.message.Message;
 import com.example.server.domain.refresh_token.entity.RefreshToken;
 import com.example.server.domain.refresh_token.repository.RefreshTokenRepository;
+import com.example.server.domain.user.dto.UserDto;
 import com.example.server.domain.user.entity.User;
 import com.example.server.security.service.JwtAuthService;
 import com.fasterxml.jackson.core.exc.StreamWriteException;
@@ -37,7 +38,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     public JwtAuthenticationFilter(RefreshTokenRepository refreshTokenRepository) {
         // form 로그인이 아닌 커스텀 로그인에서 api 요청시 인증 필터를 진행할 url
         this.refreshTokenRepository = refreshTokenRepository;
-        setFilterProcessesUrl("/api/login");
+        this.setFilterProcessesUrl("/api/login");
     }
 
     @Override
@@ -48,11 +49,12 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         try {
             // form으로 넘어온 값으로 user 객체를 생성
             User user = new ObjectMapper().readValue(request.getReader(), User.class);
+            // 인증 전 객체 생성
             UsernamePasswordAuthenticationToken userToken = new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword());
             this.setDetails(request, userToken);
 
             // AuthenticationManager에 인증 위임
-            return getAuthenticationManager().authenticate(userToken);
+            return this.getAuthenticationManager().authenticate(userToken);
         } catch (IOException e) {
             throw new AuthenticationServiceException("아이디와 비밀번호를 올바르게 입력해주세요.");
         }
@@ -64,7 +66,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         System.out.println("-----successfulAuthnentication-----");
     
         // 1. 로그인 성공된 user 조회
-        User user = ((CustomUserDetails) authResult.getPrincipal()).getUser();
+        UserDto user = ((CustomUserDetails) authResult.getPrincipal()).getUser();
 
         // 2. Access Token 생성, Refresh Token 생성
         UUID refreshTokenId = UUID.randomUUID();
@@ -116,7 +118,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException failed) throws IOException, ServletException {
-        System.out.println("-----unsuccessfulAuthnentication-----");
+        System.out.println("-----unsuccessfulAuthentication-----");
 
         // 1. Http Response Message 세팅 후 반환
         Object failedType = failed.getClass();

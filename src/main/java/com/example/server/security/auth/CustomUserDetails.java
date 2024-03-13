@@ -8,7 +8,7 @@ import java.util.List;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import com.example.server.domain.user.entity.User;
+import com.example.server.domain.user.dto.UserDto;
 
 import lombok.Getter;
 import lombok.ToString;
@@ -16,9 +16,9 @@ import lombok.ToString;
 @Getter
 @ToString
 public class CustomUserDetails implements UserDetails {
-    private User user;
+    private UserDto user;
 
-    public CustomUserDetails(User user) {
+    public CustomUserDetails(UserDto user) {
         this.user = user;
     }
 

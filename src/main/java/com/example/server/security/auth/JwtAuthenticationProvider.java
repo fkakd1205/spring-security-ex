@@ -19,8 +19,8 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
     // 실제 인증을 담당
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-        UsernamePasswordAuthenticationToken token = (UsernamePasswordAuthenticationToken) authentication;
         System.out.println("#=====AUTHENTICATION PROVIDER=====#");
+        UsernamePasswordAuthenticationToken token = (UsernamePasswordAuthenticationToken) authentication;
 
         String username = token.getName();
         String password = token.getCredentials().toString();
@@ -35,6 +35,7 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
             throw new BadCredentialsException("로그인 정보가 올바르지 않습니다.");
         }
     
+        // 인증 완료된 객체 생성
         return new UsernamePasswordAuthenticationToken(savedUser, password, savedUser.getAuthorities());
     }
 

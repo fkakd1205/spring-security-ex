@@ -28,6 +28,7 @@ import com.example.server.domain.refresh_token.entity.RefreshToken;
 import com.example.server.domain.refresh_token.repository.RefreshTokenRepository;
 import com.example.server.domain.social_login.dto.OAuthResponse;
 import com.example.server.domain.social_login.dto.OAuthUserAttributes;
+import com.example.server.domain.user.dto.UserDto;
 import com.example.server.domain.user.entity.User;
 import com.example.server.domain.user.repository.UserRepository;
 import com.example.server.security.service.JwtAuthService;
@@ -133,13 +134,14 @@ public class SocialLoginService {
             userRepository.save(entity);
         }
 
+        UserDto userDto = UserDto.toDto(entity);
         // access token, refresh token 생성
         UUID refreshTokenId = UUID.randomUUID();
-        this.createAccessToken(response, entity, refreshTokenId);
-        this.createRefreshToken(entity, refreshTokenId);
+        this.createAccessToken(response, userDto, refreshTokenId);
+        this.createRefreshToken(userDto, refreshTokenId);
     }
 
-    private void createAccessToken(HttpServletResponse response, User user, UUID refreshTokenId) throws IOException {
+    private void createAccessToken(HttpServletResponse response, UserDto user, UUID refreshTokenId) throws IOException {
         String accessToken = JwtAuthService.createAccessToken(user, refreshTokenId);
 
         // access token 발급
@@ -161,7 +163,7 @@ public class SocialLoginService {
         this.createResponseMessage(response, message);
     }
 
-    private void createRefreshToken(User user, UUID refreshTokenId) {
+    private void createRefreshToken(UserDto user, UUID refreshTokenId) {
         // Refresh Token 저장
         String refreshToken = JwtAuthService.createRefreshToken(user);
 

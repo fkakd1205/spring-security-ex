@@ -22,6 +22,7 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 
 import com.example.server.domain.refresh_token.entity.RefreshToken;
 import com.example.server.domain.refresh_token.repository.RefreshTokenRepository;
+import com.example.server.domain.user.dto.UserDto;
 import com.example.server.domain.user.entity.User;
 import com.example.server.domain.user.repository.UserRepository;
 import com.example.server.security.properties.AuthTokenProperties;
@@ -81,6 +82,7 @@ public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
         // 토큰에 저장된 유저정보가 존재하지 않는 경우 예외처리
         User savedUser = userRepository.findByUsername(claims.get("username").toString())
             .orElseThrow(() -> new UserPrincipalNotFoundException("not found user."));
+        UserDto savedUserDto = UserDto.toDto(savedUser);
 
         // 액세스토큰이 만료된 경우
         if(isAccessTokenExpired) {
@@ -111,7 +113,7 @@ public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
                 }
 
                 // 리프레시 토큰이 존재한다면 액세스토큰 발급
-                String newAccessToken = JwtAuthService.createAccessToken(savedUser, refreshTokenId);
+                String newAccessToken = JwtAuthService.createAccessToken(savedUserDto, refreshTokenId);
 
                 if(refreshTokenClaims != null) {
                     ResponseCookie cookies = ResponseCookie.from("access_token", newAccessToken)
@@ -134,11 +136,11 @@ public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
             }
         }
 
-        this.saveAuthenticationToSecurityContextHolder(savedUser);
+        this.saveAuthenticationToSecurityContextHolder(savedUserDto);
         filterChain.doFilter(request, response);
     }
 
-    private void saveAuthenticationToSecurityContextHolder(User user) {
+    private void saveAuthenticationToSecurityContextHolder(UserDto user) {
         CustomUserDetails userDetails = new CustomUserDetails(user);
 
         // 인가 처리가 정상적으로 완료된다면 Authentication 객체 생성
