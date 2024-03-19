@@ -38,12 +38,12 @@ public class OAuthUserAttributes {
 
     private static OAuthUserAttributes ofKakao(Map<String, Object> attributes) {
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
-        Map<String, Object> properties = (Map<String, Object>) attributes.get("properties");
+        Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
 
         return new OAuthUserAttributes(
                 String.valueOf(attributes.get("id")),
-                (String) properties.get("nickname"),
+                (String) profile.get("nickname"),
                 (String) kakaoAccount.get("email"),
-                (String) properties.get("profile_image"));
+                (String) profile.get("profile_image_url"));
     }
 }

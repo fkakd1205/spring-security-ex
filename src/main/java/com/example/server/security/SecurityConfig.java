@@ -15,11 +15,13 @@ import org.springframework.security.web.context.SecurityContextRepository;
 
 import com.example.server.domain.refresh_token.repository.RefreshTokenRepository;
 import com.example.server.domain.user.repository.UserRepository;
+import com.example.server.security.auth.CustomOAuth2UserService;
 import com.example.server.security.auth.CustomUserDetailsService;
 import com.example.server.security.auth.JwtAuthenticationFilter;
 import com.example.server.security.auth.JwtAuthenticationProvider;
 import com.example.server.security.auth.JwtAuthorizationFilter;
 import com.example.server.security.handler.CustomLogoutHandler;
+import com.example.server.security.handler.OAuth2AuthenticationSuccessHandler;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
+    private final CustomOAuth2UserService customOAuth2UserService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
 
@@ -38,43 +41,50 @@ public class SecurityConfig {
         JwtAuthorizationFilter jwtAuthorizationFilter = jwtAuthorizationFilter(authenticationManager);
 
         http
-            .cors().disable()
-            .csrf().disable()
-            .formLogin().disable()
-            .httpBasic().disable()
-            .sessionManagement()
-            .sessionCreationPolicy(SessionCreationPolicy.STATELESS);    // jwt사용으로 세션관리 해제
-            // .usernameParameter("uesrname")      // form login에서 왜 uesrname으로 넘어올까..
-            // .passwordParameter("password")
-            // .permitAll()
-            // .loginProcessingUrl("/api/v1/login")
-            // .defaultSuccessUrl("/");
-        
-        http
-            .headers().frameOptions().sameOrigin();
+                .cors(cors -> cors.disable())
+                .csrf(csrf -> csrf.disable())
+                .formLogin(login -> login.disable())
+                .httpBasic(basic -> basic.disable())
+                .sessionManagement(management -> management
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)); // jwt사용으로 세션관리 해제
 
         http
-            .logout()
-            .logoutUrl("/api/logout")
-            .logoutSuccessHandler(new CustomLogoutHandler())
-            .deleteCookies("access_token");
+                .headers(headers -> headers.frameOptions().sameOrigin());
 
         http
-            .authorizeRequests()
-            .antMatchers("/api/admin/**")
-            .access("hasRole('ROLE_ADMIN')")
-            .antMatchers("/api/test/**")
-            .access("hasRole('ROLE_USER')")
-            .antMatchers("/api/social-login/**", "/api/login")
-            .permitAll()
-            .anyRequest().authenticated();
+                .logout(logout -> logout
+                        .logoutUrl("/api/logout")
+                        .logoutSuccessHandler(new CustomLogoutHandler())
+                        .deleteCookies("access_token"));
+
+        http
+                .authorizeRequests(requests -> requests
+                        .antMatchers("/api/admin/**")
+                        .access("hasRole('ROLE_ADMIN')")
+                        .antMatchers("/api/test/**")
+                        .access("hasRole('ROLE_USER')")
+                        // .antMatchers("/api/social-login/**", "/api/login")
+                        .antMatchers("/api/login")
+                        .permitAll()
+                        .anyRequest().authenticated());
+
+        http
+                .oauth2Login(login -> login
+                        .authorizationEndpoint(endpoint -> endpoint.baseUri("/oauth2/login"))
+                        .userInfoEndpoint(endpoint -> endpoint.userService(customOAuth2UserService))
+                        .successHandler(oAuth2AuthenticationSuccessHandler()));
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterAfter(jwtAuthorizationFilter, JwtAuthenticationFilter.class);
         
         return http.build();
     }
-    
+
+    @Bean
+    public OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler() {
+        return new OAuth2AuthenticationSuccessHandler(refreshTokenRepository);
+    }
+
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
