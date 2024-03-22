@@ -18,6 +18,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.ClientRegistration.ProviderDetails.UserInfoEndpoint;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -51,34 +52,39 @@ public class SocialLoginService {
      * 1. request body로 전달받은 인가코드를 이용해 인증토큰 발급 api 요청
      * a - 필수 항목 : grant_type, client_id, client_secret, code, state
      * 
-     * 2. 인증토큰을 발급받은 후 네이버 프로필 조회 api 요청
+     * 2. 인증토큰 발급 후 유저 정보 조회 api 요청
      * 
-     * 3. 우리 회원가입 로직 실행(user테이블에 저장 및 access token, refresh token 발급)
-     * a - 여기서 유저마다 고유한 값을 조회해야 한다. sns 타입과 고유값을 사용해 중복 회원가입을 방지 -> '[provider]_[provider_user_id]'로 식별
-     * b - 새로운 회원이라면 user entity 저장, 저장 후 우리 사이트 전용 access token, refresh token 발급
-     * c - 이미 가입된 회원이라면 user entity 저장하지 않고, 우리 사이트 전용 access token, refresh token 발급
+     * 3. 우리 회원가입 로직 실행 (user테이블에 저장 및 access token, refresh token 발급)
+     * a - 여기서 유저마다 고유한 값이 필요하다. registrationId와 registration에서 사용되는 고유값을 사용해 중복 회원가입을 방지 -> '[registrationId]_[registration_user_id]'로 식별
+     * b - 새로운 회원이라면 user entity 저장하고, 이미 가입된 회원이라면 저장된 회원을 조회한다.
+     * c - 저장 후 우리 사이트 전용 access token, refresh token 발급
      * 
      * 4. 한 번 소셜로그인을 진행하면 발급된 refresh token으로 access token을 발급받을 수 있다. 소셜로그인 유저는 authorization filter를 탄다
      */
+    public void socialLogin(HttpServletResponse response, String registrationId, String code) throws IOException {
+        // 0. registrationId를 확인해 어떤 플랫폼에서 요청되는지 확인
+        ClientRegistration clientRegistration = clientRegistrationRepository.findByRegistrationId(registrationId);
+    
+        if (clientRegistration == null) {
+            throw new IllegalArgumentException("등록되지 않은 RegistrationId");
+        }
 
-    /*
-     * 생각
-     * - 같은 이메일을 사용해 naver, kakao 로그인을 진행해 username이 중복된다면?
-     * - username을 provider id를 저장했을 때, provier id를 가지고 api를 요청할 수 있을까?
-     * - 3-a 과정을 더 일찍 실행해 1번 전에 실행할 수 있을까
-     * - 소셜로그인은 user entity에 비밀번호를 저장하지 않는다
-     * - 요청 dto, 응답 dto 생성하자
-     * 
-     * + 3-a 과정을 더 일찍 실행해~. 이 부분은 생각해보니 소셜로그인 인증절차를 생략하게 되므로 3-a 위치에서 시작하는게 맞는것같음
-     */
-    public void socialLogin(HttpServletResponse response, String provider, String code) throws IOException {
-        // 0. provider를 설정해 어떤 플랫폼에서 요청되는지 확인
-        ClientRegistration clientRegistration = clientRegistrationRepository.findByRegistrationId(provider);
+        // 1. 토큰 요청
+        OAuthResponse.RequestToken tokenResponse = this.requestOAuth2AccessToken(clientRegistration, code);
+        // 2. 유저 정보 조회 요청
+        OAuthUserAttributes userAttributes = this.requestOAuth2UserInfo(clientRegistration, tokenResponse);
+        // 3. 새로운 회원이라면 user entity 저장하고, 이미 가입된 회원이라면 저장된 회원을 조회한다.
+        UserDto userDto = this.getRegisteredUser(registrationId, userAttributes);
+        
+        // access token, refresh token 생성
+        UUID refreshTokenId = UUID.randomUUID();
+        this.createAccessToken(response, userDto, refreshTokenId);
+        this.createRefreshToken(userDto, refreshTokenId);
+    }
 
-        // 1. request body로 전달받은 인가코드를 이용해 인증토큰 발급 api 요청
+    private OAuthResponse.RequestToken requestOAuth2AccessToken(ClientRegistration clientRegistration, String code) {
         String tokenRequestUri = clientRegistration.getProviderDetails().getTokenUri();
 
-        // naver - grant_type, client_id, client_secret, code, state 필수
         MultiValueMap<String, String> parameter = new LinkedMultiValueMap<>();
         parameter.add("grant_type", "authorization_code");
         parameter.add("client_id", clientRegistration.getClientId());
@@ -86,7 +92,6 @@ public class SocialLoginService {
         parameter.add("code", code);
         parameter.add("state", "1234");
 
-        // token 요청
         OAuthResponse.RequestToken tokenResponse = WebClient.create()
                 .post()
                 .uri(tokenRequestUri)
@@ -99,10 +104,13 @@ public class SocialLoginService {
                 .bodyToMono(OAuthResponse.RequestToken.class)
                 .block();
 
-        // 2. 인증토큰을 발급받은 후 네이버 프로필 조회 api 요청
+        return tokenResponse;
+    }
+
+    private OAuthUserAttributes requestOAuth2UserInfo(ClientRegistration clientRegistration, OAuthResponse.RequestToken tokenResponse) {
         String userInfoRequestUri = clientRegistration.getProviderDetails().getUserInfoEndpoint().getUri();
 
-        OAuthUserAttributes userAttributes = OAuthUserAttributes.of(provider, WebClient.create()
+        OAuthUserAttributes userAttributes = OAuthUserAttributes.of(clientRegistration, WebClient.create()
                 .get()
                 .uri(userInfoRequestUri)
                 .headers(header -> header.setBearerAuth(tokenResponse.getAccess_token()))
@@ -110,7 +118,11 @@ public class SocialLoginService {
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .block());
 
-        String USERNAME = provider + "_" + userAttributes.getResponseId();
+        return userAttributes;
+    }
+
+    private UserDto getRegisteredUser(String registrationId, OAuthUserAttributes userAttributes) {
+        String USERNAME = registrationId + "_" + userAttributes.getResponseId();
         String PASSWORD = passwordEncoder.encode(UUID.randomUUID().toString());
         
         // 3. 우리 회원가입 로직 실행(user테이블에 저장 및 access token, refresh token 발급)
@@ -121,7 +133,7 @@ public class SocialLoginService {
                 .profileName(userAttributes.getProfileName())
                 .profileImagePath(userAttributes.getProfileImagePath())
                 .roles("ROLE_USER")
-                .provider(provider)
+                .provider(registrationId)
                 .providerUserId(userAttributes.getResponseId())
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -135,11 +147,9 @@ public class SocialLoginService {
         }
 
         UserDto userDto = UserDto.toDto(entity);
-        // access token, refresh token 생성
-        UUID refreshTokenId = UUID.randomUUID();
-        this.createAccessToken(response, userDto, refreshTokenId);
-        this.createRefreshToken(userDto, refreshTokenId);
+        return userDto;
     }
+    
 
     private void createAccessToken(HttpServletResponse response, UserDto user, UUID refreshTokenId) throws IOException {
         String accessToken = JwtAuthService.createAccessToken(user, refreshTokenId);
@@ -191,7 +201,6 @@ public class SocialLoginService {
 
      // response message 설정
      private void createResponseMessage(HttpServletResponse response, Message message) throws StreamWriteException, DatabindException, IOException {
-        response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON.toString());    
         new ObjectMapper().writeValue(response.getOutputStream(), message);
     }

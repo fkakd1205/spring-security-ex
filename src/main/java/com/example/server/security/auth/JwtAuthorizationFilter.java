@@ -51,16 +51,22 @@ public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
             throws ServletException, IOException {
         System.out.println("#=====AUTHORIZATION FILTER=====#");
 
-        Cookie cookie = Arrays.stream(request.getCookies())
-            .filter(r -> r.getName().equals("access_token"))
-            .findAny()
-            .orElse(null);
-
-        if(cookie == null) {
+        Cookie cookie = null;
+        try {
+            cookie = Arrays.stream(request.getCookies())
+                    .filter(r -> r.getName().equals("access_token"))
+                    .findAny()
+                    .orElse(null);
+        } catch (NullPointerException e) {
             filterChain.doFilter(request, response);
             return;
         }
-        
+
+        if (cookie == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String accessToken = cookie.getValue();
         Claims claims = null;
         boolean isAccessTokenExpired = false;
