@@ -21,6 +21,7 @@ import com.example.server.security.auth.JwtAuthenticationFilter;
 import com.example.server.security.auth.JwtAuthenticationProvider;
 import com.example.server.security.auth.JwtAuthorizationFilter;
 import com.example.server.security.handler.CustomLogoutHandler;
+import com.example.server.security.handler.OAuth2AuthenticationFailureHandler;
 import com.example.server.security.handler.OAuth2AuthenticationSuccessHandler;
 
 import lombok.RequiredArgsConstructor;
@@ -72,7 +73,8 @@ public class SecurityConfig {
                 .oauth2Login(login -> login
                         .authorizationEndpoint(endpoint -> endpoint.baseUri("/oauth2/login"))
                         .userInfoEndpoint(endpoint -> endpoint.userService(customOAuth2UserService))
-                        .successHandler(oAuth2AuthenticationSuccessHandler()));
+                        .successHandler(oAuth2AuthenticationSuccessHandler())
+                        .failureHandler(oAuth2AuthenticationFailureHandler()));
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterAfter(jwtAuthorizationFilter, JwtAuthenticationFilter.class);
@@ -83,6 +85,11 @@ public class SecurityConfig {
     @Bean
     public OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler() {
         return new OAuth2AuthenticationSuccessHandler(refreshTokenRepository);
+    }
+
+    @Bean
+    public OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler() {
+        return new OAuth2AuthenticationFailureHandler();
     }
 
     @Bean

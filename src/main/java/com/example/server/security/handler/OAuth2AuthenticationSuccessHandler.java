@@ -35,7 +35,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
             Authentication authentication) throws IOException, ServletException {
-        System.out.println("-----successfulOAuthAuthorization-----");
+        System.out.println("-----successfulOAuth2Authorization-----");
 
          // 1. 로그인 성공된 user 조회
         UserDto user = ((CustomUserDetails) authentication.getPrincipal()).getUser();
@@ -77,7 +77,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookies.toString());
-        
+    
         this.clearAuthenticationAttributes(request);
         this.getRedirectStrategy().sendRedirect(request, response, authorizedRedirectUrl);
     }

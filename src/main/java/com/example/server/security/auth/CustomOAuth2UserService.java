@@ -29,11 +29,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         OAuth2User oAuth2User = super.loadUser(userRequest);
         ClientRegistration clientRegistration = userRequest.getClientRegistration();
-        String provider = clientRegistration.getRegistrationId().toString();
-
-        OAuthUserAttributes userAttributes =  OAuthUserAttributes.of(provider, oAuth2User.getAttributes());
-
-        String USERNAME = provider + "_" + userAttributes.getResponseId();
+        
+        OAuthUserAttributes userAttributes =  OAuthUserAttributes.of(clientRegistration, oAuth2User.getAttributes());
+        
+        String PROVIDER = clientRegistration.getRegistrationId().toString();
+        String USERNAME = PROVIDER + "_" + userAttributes.getResponseId();
         String PASSWORD = "";
 
         // 우리 회원가입 로직 실행(user테이블에 저장)
@@ -44,7 +44,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .profileName(userAttributes.getProfileName())
                 .profileImagePath(userAttributes.getProfileImagePath())
                 .roles("ROLE_USER")
-                .provider(provider)
+                .provider(PROVIDER)
                 .providerUserId(userAttributes.getResponseId())
                 .createdAt(LocalDateTime.now())
                 .build();
