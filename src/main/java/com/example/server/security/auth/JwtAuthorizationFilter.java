@@ -43,9 +43,9 @@ public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
-    // 1. 액세스토큰을 담고 있는 쿠키를 확인
-    // 2. 액세스토큰이 유효하다면 -> 인증된 객체 저장하고 doFilter, 그렇지 않다면 -> 리프레스토큰 검사
-    // 3. DB에서 리프레시토큰 조회. 리프레시 토큰이 유효하다면 -> 새로운 액세스토큰 발급, 그렇지 않다면 -> 인증된 객체를 저장하지 않고 doFilter
+    // 1. access 토큰을 담고 있는 쿠키를 확인
+    // 2. access 토큰이 유효하다면 -> 인증된 객체 저장하고 doFilter, 그렇지 않다면 -> refresh 토큰 검사
+    // 3. DB에서 refresh 토큰 조회. refresh 토큰이 유효하다면 -> 새로운 access 토큰 발급, 그렇지 않다면 -> 인증된 객체를 저장하지 않고 doFilter
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -134,9 +134,8 @@ public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
                     response.addHeader(HttpHeaders.SET_COOKIE, cookies.toString());
                 }
             }else {
-                System.out.println("-----not found access & refresh token-----");
+                System.out.println("-----not found refresh token-----");
 
-                // TODO :: 인가 거절
                 filterChain.doFilter(request, response);
                 return;
             }
