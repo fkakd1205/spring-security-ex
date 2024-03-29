@@ -2,16 +2,20 @@ package com.example.server.security.cors;
 
 import java.util.Arrays;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 @Configuration
-public class CustomCorsFilterConfig {
-    @Bean
-    public CorsFilter corsFilter() {
+public class CustomCorsFilterConfig extends CorsFilter {
+
+    public CustomCorsFilterConfig() {
+        super(configurationSource());
+    }
+
+    private static CorsConfigurationSource configurationSource() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
@@ -24,8 +28,9 @@ public class CustomCorsFilterConfig {
         config.addAllowedMethod("GET");
         config.addAllowedMethod("POST");
         config.addAllowedMethod("PUT");
+        config.setMaxAge(3600L);
         config.setExposedHeaders(Arrays.asList("Authorization"));
         source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
+        return source;
     }
 }
